@@ -22,15 +22,18 @@ The Artist’s Studio is Her Bedroom. (2020). Contemporary Art Gallery, Vancouve
 
 Thomas, Z. (2020). Introduction: The Arts and Crafts movement, work cultures, and the politics of gender. In Women art workers and the Arts and Crafts movement (1st ed., pp. 1–32). Manchester University Press. https://www.jstor.org/stable/j.ctv11g95mh.5
 
+The Museum of Modern Art. (2021). The Museum of Modern Art (MoMA) Collection (Version v1.62) [Data set]. https://doi.org/10.5281/zenodo.4408594
+
 **Preliminary Exploratory Data Anlaysis** 
 First of all we loaded the libraries we need for the project.
 
+#loading relevant libraries
 library(tidyverse)
 library(lubridate)
 library(repr)
 library(tidymodels)
 library(GGally)
-set.seed(1234)
+set.seed(1234) #to allow reproducibility
 
 We read the data from https://media.githubusercontent.com/media/MuseumofModernArt/collection/master/Artworks.csv" using `read_csv` function as the columns of the dataset is seperated by commas. 
 
@@ -42,17 +45,16 @@ artworks
 artworks_6 <- tail(artworks, 6)
 # artworks_6
 
+Here we tidy the column names in order to avoid the risk of the column Height (cm) being considered as a function "Height" with argument "cm" in R. By renaming the column names using make.names function we are able to use them directly.
+
 #tidy column names
 colnames(artworks) <- make.names(colnames(artworks), unique = TRUE)
 artworks
 artworks_6 <- tail(artworks, 6)
 # artworks_6
 
-However, some column names of the dataset has to be revised. For example, the column Height (cm) will be considered as a function Height with argument cm in R. By renaming the column names using make.names function we are able to use them directly.
+First we split our data into a training set and a testing set using proportions of 75% and 25% respectively so that there is enough data in both sets to build and assess our model. We will only use the training set to create our model. We will use Width and Height as the two predictors to predict the artists' gender. By using`filter(Gender == "(Male)")` and `filter(Gender == "(Female)")` we successfully separate our data into two subsets by gender. Since the data is untidy and there are currently 409 categories of genders, the best option is to filter for (Male) and (Female) since extracting every category of gender would be computationally expensive especially and where certain gender categories have few observations, we do not want the small sample size to skew our analysis.
 
-We first have to split our data into a training set and a testing set. We will only use the training set to plot graph. Width and Height are the two predictors we want to use to predict the artists' gender. By doing `filter(Gender == "(Male)")` and `filter(Gender == "(Female)")` we successfully separated our data into two subsets by genders. Since the data is untidy and there are 409 levels of Genders, the best option was to filter out (Male) and (Female) since extracting all the genders would be extremely computationally expensive especially for our time frame.
-
-#split data into training (75% of data so that there is a reasonable amount of data for the model to effectively learn) and testing (25% of data so there is a reasonable amount to evaluate on) set, making sure to set seed first so that work is reproducible
 # artworks <- artworks %>%
 #                   filter(Gender == "(Male)") %>%
 #              filter(Gender == "(Female)") %>%
@@ -77,7 +79,9 @@ a1
 # #filter out (Male) and (Female) from Genders column
 # artworks_male <- artworks%>%
 #                         filter(Gender == "(Male)") 
-                      
+
+Here we filter out untidy observations (NA's and 0's) and create a balanced and random sample of 1200 male and 1200 female artists.
+
 # artworks_male <- sample_n(artworks_male, 1200)
 # artworks_male_6 <- tail(artworks_male, 6)
 # artworks_male_6
@@ -112,7 +116,7 @@ nrow(artworks_both)
 
 options(repr.plot.height = 9, repr.plot.width = 12)
 gender_plot <- artworks_both %>%
-                   ggpairs(title = "Height/Width of Artworks by Male and Female Artists", 
+                   ggpairs(title = "Figure 1. Height and Width of Artworks by Male and Female Artists", 
                    mapping = ggplot2::aes(colour=Gender), 
                    lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.1)))  +
                    labs("Height(cm)", "Width(cm)", "Gender(Female and Male)") +
@@ -120,7 +124,7 @@ gender_plot <- artworks_both %>%
                    theme(text = element_text(size = 20))
 gender_plot
 
-#remove outliers with slice 
+#remove outliers using slice 
 artworks_width_revised <- arrange(artworks_both, Width..cm.) %>%
                           slice(1:(n()-4))
 artworks_width_revised_6 <- tail(artworks_width_revised, 6)
@@ -129,7 +133,7 @@ artworks_width_revised_6
 #make plot with revised width data
 options(repr.plot.height = 9, repr.plot.width = 12)
 gender_plot_revised <- artworks_width_revised %>%
-                   ggpairs(title = "Height/Width of Artworks by Male and Female Artists (Outliers Removed))", 
+                   ggpairs(title = "Figure 2. Height and Width of Artworks by Male and Female Artists (Outliers Removed))", 
                    mapping = ggplot2::aes(colour=Gender), 
                    lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.1)))  +
                    labs("Height(cm)", "Width(cm)", "Gender(Female and Male)") +
@@ -137,39 +141,39 @@ gender_plot_revised <- artworks_width_revised %>%
                    theme(text = element_text(size = 20))
 gender_plot_revised
 
-#scaling and setting the recipe
+#scale and centring the recipe
 artwork_recipe <- recipe(Gender ~ Height..cm. + Width..cm., data = artworks_both) %>%
   step_scale(all_predictors()) %>%
   step_center(all_predictors())
 artwork_recipe 
 
-#creating k-nearest neighbor classifier with k=3. 
+#create k-nearest neighbor classifier with k=3. 
 artwork_spec <- nearest_neighbor(weight_func = "rectangular", neighbors = 3) %>%
   set_engine("kknn") %>%
   set_mode("classification")
 artwork_spec
 
-#creating cross validation using vfold
+#create cross validation using vfold
 artwork_vfold <- vfold_cv(artworks_both, v = 10, strata = Gender)
 
 
-#perform workflow analysis, using fit resamples
+#perform workflow analysis using fit resamples
 artworks_resample_fit <- workflow() %>%
   add_recipe(artwork_recipe) %>%
   add_model(artwork_spec) %>%
   fit_resamples(resamples = artwork_vfold)
 
-#assessing accuracy of the model
+#assess accuracy of the model
 artworks_metrics <- collect_metrics(artworks_resample_fit)
 artworks_metrics
 
-#new model specification using tune() argument
+#create new model specification using tune() argument
 artworks_tune <- nearest_neighbor(weight_func = "rectangular", neighbors = tune()) %>%
   set_engine("kknn") %>%
   set_mode("classification")
 artworks_tune
 
-#getting the results from the new model
+#obtain results from the new model
 artworks_tune_results <- workflow() %>%
   add_recipe(artwork_recipe) %>%
   add_model(artworks_tune) %>%
@@ -177,21 +181,23 @@ artworks_tune_results <- workflow() %>%
   collect_metrics()
 artworks_tune_results
 
-#finding the best result:
+#view results
 accuracies <- artworks_tune_results %>% 
       filter(.metric == 'accuracy')
 
-#plotting the different accuracies of K
+#plot the different accuracies of K
 accuracy_versus_k <- ggplot(accuracies, aes(x = neighbors, y = mean))+
       geom_point() +
       geom_line() +
       labs(x = "Neighbors", y = "Accuracy Estimate") +
+      ggtitle("Figure 3. K Nearest Neighbours CLassification Accuracy")+
       scale_x_continuous(breaks = seq(0, 14, by = 1)) +  # adjusting the x-axis
       scale_y_continuous(limits = c(0.4, 1.0)) # adjusting the y-axis
 accuracy_versus_k
 
-#Next step would be do use this model to make predictions - but seems like it would just guess 55%
+#Accuracy appears unaffected by values of K. The model has an accuracy of 55% when using the training data set. The accuracy appears unaffected by the number of nearest neighbours which suggests that there is no correlation between artwork size and gender. 
 
+#adjust model with k = 2 as this yield
 artworks_best_spec <- nearest_neighbor(weight_func = "rectangular", neighbors = 2) %>%
                       set_engine("kknn") %>%
                       set_mode("classification")
