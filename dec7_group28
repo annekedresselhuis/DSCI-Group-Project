@@ -1,0 +1,230 @@
+**Predicting Artist Gender Using Artwork Size: Exploring Gender Discrimination in the Artistic Profession**
+
+DSCI 100 004 Project Report
+
+Group 28
+
+**Anneke Dresselhuis** - 60524006 | **Hesham El Kassem** - 37765682 | **Ariane Huang** - 94730660 | **Elaine Zhou** - 99976417
+
+**Introduction** 
+
+Historical and contemporary artists have made and continue to make artwork using a variety of media including painting, drawing, sculpture, photography, printmaking among others. Throughout history, however, socio-economic inequalties have made it difficult for women-identifying artists to work with certain types of media - particularly those which require a significant amount of space (Bain, 2006) which can be costly. Given that women's artwork has historically taken smaller forms and has been categorized as less significant "arts and crafts" rather than grand masterpieces or "valuable art" made by men (Thomas, 2020), women artists have experienced and continue to experience disproportionate financial hardships in their creative practices. A recent art exhibition at Vancouver's Contemporary Art Gallery titled, "The Artist's Studio is Her Bedroom" alludes to the reality of spatial and financial constraints faced by many women artists today (Contemporary Art Gallery, 2020). 
+
+Our analysis uses data from New York's Museum of Modern Art (MoMA) and will seek to answer the following question: **given the size of an artwork, what will be the gender of the artist?** This expansive dataset contains metadata on each artwork in MoMA's permanant collection; in this analysis we will be using the variables: "Gender" (denoting whether the artist is male or female), "Height" (measuring the artwork height in centimeters) and "Width" (measuring the artwork width in centimeters).
+
+We note that gender in this dataset is constrained to a binary class, although in real life gender is best understood as a existing on a spectrum. Currently, little emperical attention has been given to documenting discrimination in the artistic profession. The results from this analysis could be used to inform public funding iniatives that support women artists' access to studio space, improve their ability to create larger works and ultimately strengthen their financial security. 
+
+**Sources:**
+
+Bain, A. L. (2004). Female artistic identity in place: The studio. Social & Cultural Geography, 5(2), 171–193. https://doi.org/10.1080/14649360410001690204
+
+The Artist’s Studio is Her Bedroom. (2020). Contemporary Art Gallery, Vancouver. Retrieved November 8, 2021, from https://www.contemporaryartgallery.ca/exhibitions/the-artists-studio-is-her-bedroom/
+
+Thomas, Z. (2020). Introduction: The Arts and Crafts movement, work cultures, and the politics of gender. In Women art workers and the Arts and Crafts movement (1st ed., pp. 1–32). Manchester University Press. https://www.jstor.org/stable/j.ctv11g95mh.5
+
+**Preliminary Exploratory Data Anlaysis** 
+First of all we loaded the libraries we need for the project.
+
+library(tidyverse)
+library(lubridate)
+library(repr)
+library(tidymodels)
+library(GGally)
+set.seed(1234)
+
+We read the data from https://media.githubusercontent.com/media/MuseumofModernArt/collection/master/Artworks.csv" using `read_csv` function as the columns of the dataset is seperated by commas. 
+
+#load dataset
+artworks <- read_csv("https://media.githubusercontent.com/media/MuseumofModernArt/collection/master/Artworks.csv")
+artworks
+
+#explore a subset of the data: last 1000 entries
+artworks_6 <- tail(artworks, 6)
+# artworks_6
+
+#tidy column names
+colnames(artworks) <- make.names(colnames(artworks), unique = TRUE)
+artworks
+artworks_6 <- tail(artworks, 6)
+# artworks_6
+
+However, some column names of the dataset has to be revised. For example, the column Height (cm) will be considered as a function Height with argument cm in R. By renaming the column names using make.names function we are able to use them directly.
+
+We first have to split our data into a training set and a testing set. We will only use the training set to plot graph. Width and Height are the two predictors we want to use to predict the artists' gender. By doing `filter(Gender == "(Male)")` and `filter(Gender == "(Female)")` we successfully separated our data into two subsets by genders. Since the data is untidy and there are 409 levels of Genders, the best option was to filter out (Male) and (Female) since extracting all the genders would be extremely computationally expensive especially for our time frame.
+
+#split data into training (75% of data so that there is a reasonable amount of data for the model to effectively learn) and testing (25% of data so there is a reasonable amount to evaluate on) set, making sure to set seed first so that work is reproducible
+# artworks <- artworks %>%
+#                   filter(Gender == "(Male)") %>%
+#              filter(Gender == "(Female)") %>%
+# # %>%
+# #                         filter(Height..cm. != "NA") %>%
+# #                         filter(Width..cm. != "NA") %>%
+# #                         filter(Width..cm. != 0) %>%
+# #                         filter(Height..cm. != 0) %>%
+#             select(Height..cm., Width..cm., Gender)
+           
+
+
+a1 <- artworks %>% filter(Gender=="(Female)"|Gender=="(Male)")  
+a1
+# artworks_split <- initial_split(artworks, prop = 0.75, strat = Gender)
+# artworks_training <- training(artworks_split)
+# artworks_testing <- testing(artworks_split)
+
+# #artworks_selected <- artworks_training %>%
+#                      #select(Height..cm., Width..cm., Gender)
+
+# #filter out (Male) and (Female) from Genders column
+# artworks_male <- artworks%>%
+#                         filter(Gender == "(Male)") 
+                      
+# artworks_male <- sample_n(artworks_male, 1200)
+# artworks_male_6 <- tail(artworks_male, 6)
+# artworks_male_6
+# nrow(artworks_male)
+
+  filter(Height..cm. != "NA") %>%
+                        filter(Width..cm. != "NA") %>%
+                        filter(Width..cm. != 0) %>%
+                        filter(Height..cm. != 0)
+                        
+ artworks_female <- artworks_selected %>%
+                        filter(Gender == "(Female)") %>%
+                        filter(Height..cm. != "NA") %>%
+                        filter(Width..cm. != "NA") %>%
+                        filter(Width..cm. != 0) %>%
+                        filter(Height..cm. != 0)
+                        
+artworks_female <- sample_n(artworks_female, 1200)
+artworks_female_6 <- tail(artworks_female, 6)
+artworks_female_6
+nrow(artworks_female)
+
+artworks_both <- rbind(artworks_male, artworks_female)
+artworks_both <- sample_n(artworks_both, 1200) %>%
+                 filter(Height..cm. != "NA") %>%
+                 filter(Width..cm. != "NA") %>%
+                 filter(Width..cm. != 0) %>%
+                 filter(Height..cm. != 0)
+artworks_both_6 <- tail(artworks_both, 6)
+artworks_both_6
+nrow(artworks_both)
+
+options(repr.plot.height = 9, repr.plot.width = 12)
+gender_plot <- artworks_both %>%
+                   ggpairs(title = "Height/Width of Artworks by Male and Female Artists", 
+                   mapping = ggplot2::aes(colour=Gender), 
+                   lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.1)))  +
+                   labs("Height(cm)", "Width(cm)", "Gender(Female and Male)") +
+                   theme_bw() +
+                   theme(text = element_text(size = 20))
+gender_plot
+
+#remove outliers with slice 
+artworks_width_revised <- arrange(artworks_both, Width..cm.) %>%
+                          slice(1:(n()-4))
+artworks_width_revised_6 <- tail(artworks_width_revised, 6)
+artworks_width_revised_6
+
+#make plot with revised width data
+options(repr.plot.height = 9, repr.plot.width = 12)
+gender_plot_revised <- artworks_width_revised %>%
+                   ggpairs(title = "Height/Width of Artworks by Male and Female Artists (Outliers Removed))", 
+                   mapping = ggplot2::aes(colour=Gender), 
+                   lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.1)))  +
+                   labs("Height(cm)", "Width(cm)", "Gender(Female and Male)") +
+                   theme_bw() +
+                   theme(text = element_text(size = 20))
+gender_plot_revised
+
+#scaling and setting the recipe
+artwork_recipe <- recipe(Gender ~ Height..cm. + Width..cm., data = artworks_both) %>%
+  step_scale(all_predictors()) %>%
+  step_center(all_predictors())
+artwork_recipe 
+
+#creating k-nearest neighbor classifier with k=3. 
+artwork_spec <- nearest_neighbor(weight_func = "rectangular", neighbors = 3) %>%
+  set_engine("kknn") %>%
+  set_mode("classification")
+artwork_spec
+
+#creating cross validation using vfold
+artwork_vfold <- vfold_cv(artworks_both, v = 10, strata = Gender)
+
+
+#perform workflow analysis, using fit resamples
+artworks_resample_fit <- workflow() %>%
+  add_recipe(artwork_recipe) %>%
+  add_model(artwork_spec) %>%
+  fit_resamples(resamples = artwork_vfold)
+
+#assessing accuracy of the model
+artworks_metrics <- collect_metrics(artworks_resample_fit)
+artworks_metrics
+
+#new model specification using tune() argument
+artworks_tune <- nearest_neighbor(weight_func = "rectangular", neighbors = tune()) %>%
+  set_engine("kknn") %>%
+  set_mode("classification")
+artworks_tune
+
+#getting the results from the new model
+artworks_tune_results <- workflow() %>%
+  add_recipe(artwork_recipe) %>%
+  add_model(artworks_tune) %>%
+  tune_grid(resamples = artwork_vfold, grid = 10) %>%
+  collect_metrics()
+artworks_tune_results
+
+#finding the best result:
+accuracies <- artworks_tune_results %>% 
+      filter(.metric == 'accuracy')
+
+#plotting the different accuracies of K
+accuracy_versus_k <- ggplot(accuracies, aes(x = neighbors, y = mean))+
+      geom_point() +
+      geom_line() +
+      labs(x = "Neighbors", y = "Accuracy Estimate") +
+      scale_x_continuous(breaks = seq(0, 14, by = 1)) +  # adjusting the x-axis
+      scale_y_continuous(limits = c(0.4, 1.0)) # adjusting the y-axis
+accuracy_versus_k
+
+#Next step would be do use this model to make predictions - but seems like it would just guess 55%
+
+artworks_best_spec <- nearest_neighbor(weight_func = "rectangular", neighbors = 2) %>%
+                      set_engine("kknn") %>%
+                      set_mode("classification")
+artworks_best_spec
+
+artworks_best_fit <- workflow() %>%
+                     add_recipe(artwork_recipe) %>%
+                     add_model(artworks_best_spec) %>%
+                     fit(artworks_training)
+artworks_best_fit
+
+# artworks_testing
+
+artworks_predictions <- predict(artworks_best_fit, artworks_testing) %>%
+                        bind_cols(artworks_testing)
+artworks_predictions
+
+artworks_new_metrics <- artworks_predictions %>%
+                         metrics(truth = Gender, estimate = .pred_class)   
+artworks_new_metrics
+
+ artworks_conf_mat <- artworks_predictions %>%
+                      conf_mat(truth = Gender, estimate = .pred_class)
+ artworks_conf_mat
+ 
+ **Methods** 
+
+We used a "K" nearest neighbours analysis to classify the gender of the artists in this data set using the predictors Height and Width. In order to find the optimized value for “K”, we will conduct a cross validation using `vfold_cv()`.
+
+We split the data and created a recipe where we specify Gender as our target and Height and Width as our predictors using the training data set. Then compute the "K" nearest straight-line distances using the `"rectangular"` weight function, set the neighbours to `tune()`, set the engine as `"kknn"` using `"classification"` mode. 
+
+Next we will train the classifier using the `workflow()`, input the result of our cross validation into the `fit_resamples` function, `collect_metrics()` to evaluate how well it performed, then use `predict()` function to apply our classifier to the testing data.`bind_cols()` allows us to view the predictions in our testing data. 
+
+**Expected Outcomes and Significance** 
+
+We anticipate that our analysis will empirically verify what has colloquiually been identified as a differential between artwork sizes by male and female artists. According to our current understanding and logic, observations with larger values for height and width will most likely be predicted as Male and observations with smaller values for height and width will most likely be predicted as Female.
