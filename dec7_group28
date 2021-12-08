@@ -195,10 +195,10 @@ accuracy_versus_k <- ggplot(accuracies, aes(x = neighbors, y = mean))+
       scale_y_continuous(limits = c(0.4, 1.0)) # adjusting the y-axis
 accuracy_versus_k
 
-#Accuracy appears unaffected by values of K. The model has an accuracy of 55% when using the training data set. The accuracy appears unaffected by the number of nearest neighbours which suggests that there is no correlation between artwork size and gender. 
+#Accuracy appears unaffected by value of K. The model has an accuracy of 55% when using the training data set. The accuracy appears unaffected by the number of nearest neighbours which suggests that there is no correlation between artwork size and gender in this dataset. 
 
-#adjust model with k = 2 as this yield
-artworks_best_spec <- nearest_neighbor(weight_func = "rectangular", neighbors = 2) %>%
+#adjust model with k = 4 as this yields the highest accuracy
+artworks_best_spec <- nearest_neighbor(weight_func = "rectangular", neighbors = 4) %>%
                       set_engine("kknn") %>%
                       set_mode("classification")
 artworks_best_spec
